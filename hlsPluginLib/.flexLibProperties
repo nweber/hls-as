@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="true" useMultiPlatformConfig="false" version="3">
+  <includeClasses>
+    <classEntry path="net.digitalprimates.osmf.plugins.hls.M3U8Loader"/>
+    <classEntry path="net.digitalprimates.osmf.plugins.hls.M3U8Element"/>
+    <classEntry path="net.digitalprimates.osmf.plugins.hls.HTTPStreamingItemsIndexInfo"/>
+    <classEntry path="net.digitalprimates.osmf.plugins.hls.HTTPStreamingPlaylist"/>
+  </includeClasses>
+  <includeResources/>
+  <namespaceManifests/>
+</flexLibProperties>

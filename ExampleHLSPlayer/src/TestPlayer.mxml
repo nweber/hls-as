@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application
+	xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	xmlns:s="library://ns.adobe.com/flex/spark" 
+	xmlns:mx="library://ns.adobe.com/flex/mx"
+	backgroundAlpha="0"
+	backgroundColor="black"
+	applicationComplete="init()">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.IList;
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			
+			import net.digitalprimates.osmf.utils.PluginLoader;
+			import net.digitalprimates.osmf.utils.events.PluginLoaderEvent;
+			
+			import org.osmf.containers.MediaContainer;
+			import org.osmf.events.BufferEvent;
+			import org.osmf.events.MediaElementEvent;
+			import org.osmf.events.MediaErrorEvent;
+			import org.osmf.events.PlayEvent;
+			import org.osmf.events.SeekEvent;
+			import org.osmf.events.TimeEvent;
+			import org.osmf.media.DefaultMediaFactory;
+			import org.osmf.media.MediaElement;
+			import org.osmf.media.MediaFactory;
+			import org.osmf.media.MediaPlayer;
+			import org.osmf.media.MediaResourceBase;
+			import org.osmf.media.PluginInfoResource;
+			import org.osmf.media.URLResource;
+			import org.osmf.traits.PlayState;
+			
+			import spark.events.IndexChangeEvent;
+			
+			protected var autoPlay:Boolean = true;
+			
+			private var seeking:Boolean= false;
+			private var scrubbing:Boolean = false;
+			
+			protected function getVideoSources():IList {
+				return null;
+			}
+			
+			[Bindable]
+			protected var currentTime:Number = 0;
+			
+			[Bindable]
+			protected var duration:Number = 0;
+			
+			protected function formatTime(seconds:Number):String {
+				var minutes:int = Math.floor(seconds / 60);
+				var leftOver:int = seconds - (minutes * 60);
+				
+				return String(minutes + ":" + formatNumber(leftOver, 2));
+			}
+			
+			protected function formatNumber(value:Number, places:int):String {
+				var str:String = String(value);
+				
+				while (str.length < places) {
+					str = "0" + str;
+				}
+				
+				return str;
+			}
+			
+			// OSMF /////////////////////////////////////////////////////////////////////
+			
+			private var pluginsLoaded:Boolean = false;
+			
+			private var pluginLoader:PluginLoader;
+			private var factory:MediaFactory;
+			private var resource:MediaResourceBase;
+			private var element:MediaElement;
+			private var player:MediaPlayer;
+			private var container:MediaContainer;
+			
+			protected function get plugins():Vector.<PluginInfoResource> {
+				return null;
+			}
+			
+			protected function init():void {
+				player = createPlayer();
+				
+				container = createContainer();
+				wrapper.addChild(container);
+				sizeContainer();
+				
+				factory = createFactory();
+				
+				pluginLoader = new PluginLoader(factory, plugins);
+				pluginLoader.addEventListener(PluginLoaderEvent.LOAD_COMPLETE, onPluginsLoaded);
+				pluginLoader.addEventListener(PluginLoaderEvent.LOAD_ERROR, onPluginsLoadError);
+				
+				// Nothing to load.
+				if (!pluginLoader.load()) {
+					pluginsLoaded = true;
+				}
+			}
+			
+			private function sizeContainer():void {
+				if (container && wrapper) {
+					container.width = wrapper.width;
+					container.height = wrapper.height;
+				}
+			}
+			
+			protected function createPlayer():MediaPlayer {
+				var p:MediaPlayer = new MediaPlayer();
+				
+				p.addEventListener(MediaErrorEvent.MEDIA_ERROR, onMediaError);
+				p.addEventListener(BufferEvent.BUFFERING_CHANGE, onBufferingChange);
+				p.addEventListener(PlayEvent.PLAY_STATE_CHANGE, onPlayStateChange);
+				p.addEventListener(SeekEvent.SEEKING_CHANGE, onSeekingChange);
+				p.addEventListener(TimeEvent.CURRENT_TIME_CHANGE, onTimeChange);
+				p.addEventListener(TimeEvent.DURATION_CHANGE, onDurationChange);
+				
+				return p;
+			}
+			
+			protected function createContainer():MediaContainer {
+				return new MediaContainer();
+			}
+			
+			protected function createFactory():MediaFactory {
+				return new DefaultMediaFactory();
+			}
+			
+			protected function buildResource(url:String):MediaResourceBase {
+				return new URLResource(url);
+			}
+			
+			protected function clear():void {
+				if (element) {
+					element.addEventListener(MediaElementEvent.TRAIT_ADD, onTraitAdd);
+					element.addEventListener(MediaElementEvent.TRAIT_REMOVE, onTraitRemove);
+				}
+			}
+			
+			protected function startStream(url:String, autoPlay:Boolean=true):void {
+				loading.visible = false;
+				clear();
+				
+				Log.log(url);
+				
+				resource = buildResource(url);
+				element = factory.createMediaElement(resource);
+				
+				element.addEventListener(MediaElementEvent.TRAIT_ADD, onTraitAdd);
+				element.addEventListener(MediaElementEvent.TRAIT_REMOVE, onTraitRemove);
+				
+				player.autoPlay = autoPlay;
+				player.media = element;
+				
+				container.addMediaElement(element);
+			}
+			// HANDLERS /////////////////////////////////////////////////////////////////
+
+			private function onPluginsLoaded( event:PluginLoaderEvent ):void {
+				pluginLoader.removeEventListener( PluginLoaderEvent.LOAD_COMPLETE, onPluginsLoaded );
+				pluginLoader.removeEventListener( PluginLoaderEvent.LOAD_ERROR, onPluginsLoadError );
+				pluginLoader = null;
+				pluginsLoaded = true;
+			}
+
+			private function onPluginsLoadError( event:PluginLoaderEvent ):void {
+				pluginLoader.removeEventListener( PluginLoaderEvent.LOAD_COMPLETE, onPluginsLoaded );
+				pluginLoader.removeEventListener( PluginLoaderEvent.LOAD_ERROR, onPluginsLoadError );
+				pluginLoader = null;
+				Log.log();
+			}
+
+			
+			private function onWrapperResize(event:ResizeEvent):void {
+				sizeContainer();
+			}
+			
+			private function onTraitAdd(event:MediaElementEvent):void {
+				Log.log(event.traitType);
+			}
+			
+			private function onTraitRemove(event:MediaElementEvent):void {
+				Log.log(event.traitType);	
+			}
+			
+			private function onMediaError(event:MediaErrorEvent):void {
+				Log.log(event.error.detail);
+			}
+			
+			private function onBufferingChange(event:BufferEvent):void {
+				loading.visible = event.buffering;
+			}
+			
+			private function onPlayStateChange(event:PlayEvent):void {
+				if (event.playState == PlayState.PLAYING) {
+					playPause.selected = true;
+				}
+				else {
+					playPause.selected = false;	
+				}
+			}
+			
+			private function onSeekingChange(event:SeekEvent):void {
+				seeking = event.seeking;
+			}
+			
+			private function onTimeChange(event:TimeEvent):void {
+				currentTime = event.time;
+				
+				if (!scrubbing && !seeking) {
+					scrubber.value = currentTime;
+				}
+			}
+			
+			private function onDurationChange(event:TimeEvent):void {
+				duration = event.time;
+				
+				scrubber.minimum = 0;
+				scrubber.maximum = duration;
+			}
+			
+			private function onScrubberChangeStart(event:FlexEvent):void {
+				scrubbing = true;
+			}
+			
+			private function onScrubberChangeEnd(event:FlexEvent):void {
+				if (player.canSeek) {
+					player.seek(event.target.value);
+				}
+				
+				scrubbing = false;
+			}
+			
+			private function onVideoSelectorChange(event:IndexChangeEvent):void {
+				var item:VideoSource = event.target.selectedItem as VideoSource;
+				
+				if (!item)
+					return;
+				
+				titleLbl.text = item.name;
+				
+				if (pluginsLoaded) {
+					startStream(item.url, autoPlay);
+				}
+				else {
+					event.target.selectedIndex = -1;
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:VerticalLayout
+			gap="0"
+			paddingTop="15"
+			paddingBottom="15"
+			paddingLeft="15"
+			paddingRight="15"/>
+	</s:layout>
+	
+	<s:Group width="100%" height="45">
+		
+		<s:Label
+			id="titleLbl"
+			color="white"
+			fontSize="20"
+			left="20"/>
+		
+		<s:DropDownList
+			id="videoSelector"
+			width="350"
+			dataProvider="{getVideoSources()}"
+			labelField="name"
+			right="20"
+			change="onVideoSelectorChange(event)"/>
+		
+	</s:Group>
+	
+	<s:Group width="100%" height="100%">
+		
+		<mx:UIComponent
+			id="wrapper"
+			width="100%" height="100%"
+			resize="onWrapperResize(event)"/>
+		
+		<mx:ProgressBar
+			id="loading"
+			width="175"
+			indeterminate="true"
+			verticalCenter="0"
+			horizontalCenter="0"/>
+		
+	</s:Group>
+	
+	<s:HGroup width="100%" verticalAlign="middle" gap="0">
+		
+		<s:ToggleButton
+			id="playPause"
+			skinClass="spark.skins.spark.mediaClasses.normal.PlayPauseButtonSkin"/>
+		
+		<s:ScrubBar
+			id="scrubber"
+			width="100%"
+			changeStart="onScrubberChangeStart(event)"
+			changeEnd="onScrubberChangeEnd(event)"/>
+		
+		<s:Label
+			text="{formatTime(currentTime)} / {formatTime(duration)}"
+			color="white"/>
+		
+		<s:Spacer width="5"/>
+		
+		<s:MuteButton
+			id="volume"
+			skinClass="spark.skins.spark.mediaClasses.normal.MuteButtonSkin"/>
+		
+		<s:ToggleButton
+			id="fullscreen"
+			skinClass="spark.skins.spark.mediaClasses.normal.FullScreenButtonSkin"/>
+		
+	</s:HGroup>
+	
+</s:Application>

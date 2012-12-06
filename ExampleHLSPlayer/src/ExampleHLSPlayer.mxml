@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<local:TestPlayer 
+	backgroundAlpha="0"
+	backgroundColor="black"
+	xmlns:fx="http://ns.adobe.com/mxml/2009"
+	xmlns:s="library://ns.adobe.com/flex/spark"
+	xmlns:mx="library://ns.adobe.com/flex/mx"
+	xmlns:local="*">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayList;
+			import mx.collections.IList;
+			
+			import net.digitalprimates.osmf.plugins.hls.HLSPluginInfo;
+			
+			import org.osmf.media.PluginInfoResource;
+			
+			public static const APPLE:String = "https://devimages.apple.com.edgekey.net/resources/http-streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8";
+			
+			public static const URL1:String = "http://qthttp.akamai.com.edgesuite.net/iphone_demo/Video_Content/martha_stewart/blueberry_pies/all.m3u8";
+			
+			public static const URL2:String = "http://mediadelivery.adobe.com/adobevideodemo/manifests/hls-hillmancurtis-manifest.m3u8";
+			
+			public static const LIVE:String = "http://iphone.kulabyte.com/kulabyte/livedemo/live.m3u8";
+			
+			override protected function getVideoSources():IList {
+				var list:ArrayList = new ArrayList();
+				
+				//list.addItem( new VideoSource( "Apple", APPLE ) );
+				//list.addItem( new VideoSource( "Blueberry Muffins", URL1 ) );
+				list.addItem( new VideoSource( "Hillman Curtis", URL2 ) );
+				//list.addItem( new VideoSource( "Live", LIVE ) );
+				
+				return list;
+			}
+			
+			private var _plugins:Vector.<PluginInfoResource>;
+			
+			override protected function get plugins():Vector.<PluginInfoResource> {
+				if ( !_plugins ) {
+					_plugins = new Vector.<PluginInfoResource>();
+					_plugins.push( new PluginInfoResource( new HLSPluginInfo() ) );
+				}
+				
+				return _plugins;
+			}
+		]]>
+	</fx:Script>
+	
+</local:TestPlayer>
